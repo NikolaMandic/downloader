@@ -1,5 +1,7 @@
 var request = require('request');
 var cheerio = require('cheerio');
+
+
 var fs = require('fs');
 //var console={log:function(){}};
 var url = "https://news.ycombinator.com/";
@@ -20,26 +22,33 @@ var rate = 10000;
 
 logToQueue(url);
 logToQueue("//"+url);
+var readlineSync = require('readline-sync');
+var url = readlineSync.prompt();
+online(url);
 var linkLevel=1;
 var linkTotal=1;
 var linkCurrent=0;
 var linkNextLevel=0;
 var linksFailed=0;
-tail = new Tail(queueFileName,lineSeparator,watchOptions,fromBeginning);
-
-tail.on("line", function(line) {
+function online(line) {
     console.log(line);
     console.log("start processing line \n");
     if (!line.match(/^\/\//i)){
 	console.log("downloading %s",line);
+        doOneLink(line);
 	setTimeout(function(){
-	    doOneLink(line);
+	    online(readlineSync.prompt());  
 	},rate);
     }
-});
+}
+/*
+tail = new Tail(queueFileName,lineSeparator,watchOptions,fromBeginning);
+
+tail.on("line", );
 tail.on("error", function(error) {
   console.log('ERROR: ', error);
 });
+*/
 function logToQueue(line){
     fs.appendFile(queueFileName, line+"\n", encoding='utf8', function (err) {
 	if (err) throw err;
