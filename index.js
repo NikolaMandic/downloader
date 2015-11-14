@@ -1,35 +1,37 @@
 var request = require('request');
 var cheerio = require('cheerio');
 
-
 var fs = require('fs');
 //var console={log:function(){}};
 var url = "https://news.ycombinator.com/";
 var projectName='log';
 var date = new Date();
 var currentTime = date.getTime();
-
+var execSync = require('child_process').execSync;
 var blessed = require('blessed');
 
 Tail = require('tail').Tail;
 var queueFileName=projectName+'-'+'queue'+'-'+currentTime;
 var doneFileName=projectName+'-'+'done'+'-'+currentTime;
-
-var lineSeparator= /[\r]{0,1}\n/; // default is now a regex that handle linux/mac (9+)/windows
-var fromBeginning = true;
-var watchOptions = {}; // as per node fs.watch documentations
 var rate = 10000;
-
-logToQueue(url);
-logToQueue("//"+url);
-var readlineSync = require('readline-sync');
-var url = readlineSync.prompt();
-online(url);
 var linkLevel=1;
 var linkTotal=1;
 var linkCurrent=0;
 var linkNextLevel=0;
 var linksFailed=0;
+var lineCurrent = 0;
+logToQueue(url);
+logToQueue("//"+url);
+
+var url = readline();
+
+console.log(url);
+online(url);
+function readline(){
+    lineCurrent=lineCurrent+1;
+    console.log(lineCurrent);
+    return execSync('sed \''+lineCurrent+'q;d\' \''+ queueFileName+'\'').toString('utf8');
+}
 function online(line) {
     console.log(line);
     console.log("start processing line \n");
@@ -37,27 +39,21 @@ function online(line) {
 	console.log("downloading %s",line);
         doOneLink(line);
 	setTimeout(function(){
-	    online(readlineSync.prompt());  
+	    online(readline());  
+	},rate);
+    }else{
+	setTimeout(function(){
+	    console.log("about to start next link "+ line)
+	    online(readline());  
 	},rate);
     }
 }
-/*
-tail = new Tail(queueFileName,lineSeparator,watchOptions,fromBeginning);
 
-tail.on("line", );
-tail.on("error", function(error) {
-  console.log('ERROR: ', error);
-});
-*/
 function logToQueue(line){
-    fs.appendFile(queueFileName, line+"\n", encoding='utf8', function (err) {
-	if (err) throw err;
-    });
+    fs.appendFileSync(queueFileName, line+"\n", encoding='utf8');
 }
 function logToDone(line){
-    fs.appendFile(doneFileName, line+"\n", encoding='utf8', function (err) {
-	if (err) throw err;
-    });
+    fs.appendFileSync(doneFileName, line+"\n", encoding='utf8');
 }
 function doOneLink(url){
     request(url, function (error, response, html) {
