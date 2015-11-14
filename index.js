@@ -2,7 +2,6 @@ var request = require('request');
 var cheerio = require('cheerio');
 
 var fs = require('fs');
-//var console={log:function(){}};
 var url = "https://news.ycombinator.com/";
 var projectName='log';
 
@@ -16,29 +15,77 @@ var blessed = require('blessed');
 var screen = blessed.screen();
 
 // Create a box perfectly centered horizontally and vertically.
-var outer = blessed.box({  
-  fg: 'blue',
+
+var queue = blessed.log({  
+  fg: 'white',
   bg: 'default',
+  label: 'links in queue',
   border: {
     type: 'line',
     fg: '#ffffff'
   },
   tags: true,
-  content: '{center}{red-fg}Hello{/red-fg}{/center}\n'
-         + '{right}world!{/right}',
+  //content: '{center}{red-fg}Hello{/red-fg}{/center}\n'
+    //     + '{right}world!{/right}',
   width: '50%',
   height: '50%',
-  top: 'center',
-  left: 'center'
+  top: '0%',
+  left: '0%'
 });
 
+var done = blessed.log({  
+  fg: 'white',
+  bg: 'default',
+    label: 'done links',
+  border: {
+    type: 'line',
+    fg: '#ffffff'
+  },
+  tags: true,
+  //content: '{center}{red-fg}Hello{/red-fg}{/center}\n'
+    //     + '{right}world!{/right}',
+  width: '50%',
+  height: '50%',
+  top: '50%',
+  left: '0%'
+});
+var status = blessed.text({
+  top: 'center',
+  left: 'center',
+  label: 'state',
+  width: '50%',
+  height: '10%',
+  content: 'Hello {bold}world{/bold}!',
+  tags: true,
+  border: {
+    type: 'line'
+  },
+  style: {
+    fg: 'white',
+    bg: 'magenta',
+    border: {
+      fg: '#f0f0f0'
+    },
+    hover: {
+      bg: 'green'
+    }
+  },
+  top: '0%',
+  left: '50%'
+});
 // Append our box to the screen.
-screen.append(outer);
+screen.append(status);
+screen.append(queue);
+screen.append(done);
+screen.key(['escape', 'q', 'C-c'], function(ch, key) {
+  return process.exit(0);
+});
 
-outer.content="asdasd";
+//outer.content="asdasd";
 
 // Render the screen.
-//screen.render();  
+screen.render();  
+var console={log:function(){}};
 
 
 
@@ -69,6 +116,7 @@ function state(){
     }
 }
 function saveState(){
+    status.content = "link current: "+linkCurrent+" links total: "+linkTotal+" links left on level: "+ linkNextLevel+" count of links on level: "+linkLevel+ " errors: "+linksFailed+" line in queue file: "+lineCurrent;
     fs.writeFileSync(stateFileName, JSON.stringify({
 	queueFileName: queueFileName,
 	doneFileName: doneFileName,
@@ -139,9 +187,11 @@ function online(line) {
 }
 function logToQueue(line){
     fs.appendFileSync(queueFileName, line+"\n", encoding='utf8');
+    queue.add(line);
 }
 function logToDone(line){
     fs.appendFileSync(doneFileName, line+"\n", encoding='utf8');
+    done.add(line);
 }
 function doOneLink(url){
     saveState();
@@ -157,12 +207,15 @@ function doOneLink(url){
 		console.log(url+element.attribs.href);
 		logToQueue(url+element.attribs.href);
 	    });
-	    	linkNextLevel=linkTotal-linkCurrent;
+	    linkNextLevel=linkTotal-linkCurrent;
 	   
 	    if(linkNextLevel==0){
 		linkLevel+=1;
 	    }
-	    console.log("linkCurrent "+linkCurrent+" linkTotal "+linkTotal+" linkNextLevel "+ linkNextLevel+" linkLevel "+linkLevel)
+	    var rate = 10000;
+
+
+	    console.log("link current: "+linkCurrent+" links total: "+linkTotal+" links left on level: "+ linkNextLevel+" count of links on level: "+linkLevel+ " errors: "+linksFailed+" line in queue file: "+lineCurrent);
 	}
     });
 }
