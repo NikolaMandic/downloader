@@ -100,6 +100,7 @@ var linkCurrent=0;
 var linkNextLevel=0;
 var linksFailed=0;
 var lineCurrent = 0;
+var currentRoot='/';
 
 function state(){
     return {	queueFileName: queueFileName,
@@ -186,7 +187,10 @@ function online(line) {
 	},rate);
     }else{
         logToDone(line);
-
+	var url_parts = path.replace(/\/\s*$/,'').replace(/:\/\//,"").split('/'); 
+	url_parts.shift();
+	console.log(url_parts);
+        currentRoot=url_parts.join("/");
 	setTimeout(function(){
 	    console.log("about to start next link "+ line)
 	    online(readline());  
@@ -201,19 +205,39 @@ function logToDone(line){
     fs.appendFileSync(doneFileName, line+"\n", encoding='utf8');
     done.add(line);
 }
+function dumpToFile(html,path){
+
+    var url_parts = path.replace(/\/\s*$/,'').replace(/:\/\//,"").split('/'); 
+    url_parts.shift();
+    console.log(url_parts);
+    var last = url_parts[url_parts.length-1];
+    var file = "index.html";
+    if(last.match("\.")){
+	file=last;
+    }
+    fs.writeFileSync("root/"+path, html+"\n", encoding='utf8');
+}
 function doOneLink(url){
     saveState();
     request(url, function (error, response, html) {
 	if (!error && response.statusCode == 200) {
 	    linkCurrent+=1;
 	    linkNextLevel-=1;
-	    logToDone(url);
-	    logToQueue("//"+url);
+
+	    if(url.match("^/")){
+		lurl=url+element.attribs.href;
+	    }else{
+		lurl=url+currentRoot+element.attribs.href;
+	    }
+	    console.log(lurl);
+	    
+	    logToDone(lurl);
+	    logToQueue("//"+lurl);
 	    var $ = cheerio.load(html);
 	    $("a:not([href^=http]):not([href^=mailto])").each(function(i, element){
 		linkTotal+=1;
-		console.log(url+element.attribs.href);
-		logToQueue(url+element.attribs.href);
+		//if relative url then
+		logToQueue(lurl);
 	    });
 	    linkNextLevel=linkTotal-linkCurrent;
 	   
@@ -221,8 +245,9 @@ function doOneLink(url){
 		linkLevel+=1;
 	    }
 	    var rate = 10000;
-
-
+	    
+	    dumpToFile(html,lurl.split("/").slice(1).join("/"));
+	    
 	    console.log("rate: " + rate + " link current: "+linkCurrent+" links total: "+linkTotal+" links left on level: "+ linkNextLevel+" count of links on level: "+linkLevel+ " errors: "+linksFailed+" line in queue file: "+lineCurrent);
 	}
     });
