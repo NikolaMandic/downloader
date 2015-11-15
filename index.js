@@ -2,7 +2,7 @@ var request = require('request');
 var cheerio = require('cheerio');
 
 var fs = require('fs');
-var url = "https://news.ycombinator.com/";
+var gurl = "https://news.ycombinator.com";
 var projectName='log';
 
 var date = new Date();
@@ -12,10 +12,10 @@ var execSync = require('child_process').execSync;
 var blessed = require('blessed');
 
 // Create a screen object.
-var screen = blessed.screen();
+//var screen = blessed.screen();
 
 // Create a box perfectly centered horizontally and vertically.
-
+/*
 var queue = blessed.log({  
   fg: 'white',
   bg: 'default',
@@ -73,10 +73,13 @@ var status = blessed.text({
   top: '0%',
   left: '50%'
 });
+
 // Append our box to the screen.
-screen.append(status);
-screen.append(queue);
-screen.append(done);
+//
+//screen.append(status);
+//screen.append(queue);
+//screen.append(done);
+//
 screen.key(['escape', 'q', 'C-c'], function(ch, key) {
   return process.exit(0);
 });
@@ -84,10 +87,12 @@ screen.key(['escape', 'q', 'C-c'], function(ch, key) {
 //outer.content="asdasd";
 
 // Render the screen.
-screen.render();  
-var console={log:function(){}};
+//
+//screen.render();  
+//
+//var console={log:function(){}};
 
-
+*/
 
 var queueFileName=projectName+'-'+currentTime+'-'+'queue';
 var doneFileName=projectName+'-'+currentTime+'-'+'done';
@@ -117,7 +122,7 @@ function state(){
     }
 }
 function saveState(){
-    status.content = "link current: "+linkCurrent+" links total: "+linkTotal+" links left on level: "+ linkNextLevel+" count of links on level: "+linkLevel+ " errors: "+linksFailed+" line in queue file: "+lineCurrent;
+  //  status.content = "link current: "+linkCurrent+" links total: "+linkTotal+" links left on level: "+ linkNextLevel+" count of links on level: "+linkLevel+ " errors: "+linksFailed+" line in queue file: "+lineCurrent;
     fs.writeFileSync(stateFileName, JSON.stringify({
 	queueFileName: queueFileName,
 	doneFileName: doneFileName,
@@ -136,10 +141,12 @@ function saveState(){
 function restoreState(){
 
     // Query the entry
+    try{
     stats = fs.lstatSync(stateFileName);
 
     // Is it a directory?
     if (stats.isFile()) {
+	console.log("state is file");
         // Yes it is	
 	var nstate=execSync('sed \'1q;d\' \''+ stateFileName+'\'').toString('utf8');
 
@@ -159,16 +166,20 @@ function restoreState(){
 	
 
     }
+}catch(a){
+}
 }
 
 function readline(){
+console.log(lineCurrent);
     lineCurrent=lineCurrent+1;
     console.log(lineCurrent);
-    return execSync('sed \''+lineCurrent+'q;d\' \''+ queueFileName+'\'').toString('utf8');
+    line = execSync('sed \''+lineCurrent+'q;d\' \''+ queueFileName+'\'').toString('utf8');
+    return line.substring(0,line.length-1);
 }
 
-logToQueue(url);
-logToQueue("//"+url);
+logToQueue(gurl);
+logToQueue("//"+gurl);
 restoreState();
 console.log(state());
 
@@ -178,65 +189,74 @@ online(url);
 
 function online(line) {
     console.log(line);
-    console.log("start processing line \n");
     if (!line.match(/^\/\//i)){
-	console.log("downloading %s",line);
+	console.log("processing %s",line);
         doOneLink(line);
 	setTimeout(function(){
 	    online(readline());  
 	},rate);
     }else{
         logToDone(line);
-	var url_parts = path.replace(/\/\s*$/,'').replace(/:\/\//,"").split('/'); 
+	line=line.substring(2);
+	var url_parts = line.replace(/\/\s*$/,'').replace(/:\/\//,"").split('/'); 
 	url_parts.shift();
 	console.log(url_parts);
         currentRoot=url_parts.join("/");
 	setTimeout(function(){
-	    console.log("about to start next link "+ line)
 	    online(readline());  
 	},rate);
     }
 }
 function logToQueue(line){
     fs.appendFileSync(queueFileName, line+"\n", encoding='utf8');
-    queue.add(line);
+    //queue.add(line);
 }
 function logToDone(line){
     fs.appendFileSync(doneFileName, line+"\n", encoding='utf8');
-    done.add(line);
+    //done.add(line);
 }
 function dumpToFile(html,path){
-
-    var url_parts = path.replace(/\/\s*$/,'').replace(/:\/\//,"").split('/'); 
+    console.log("path = "+path);
+    var url_parts = path.split('/'); 
     url_parts.shift();
     console.log(url_parts);
     var last = url_parts[url_parts.length-1];
+     var path = "";
+    if(url_parts.length>2){
+	path=url_parts.slice(0,url_parts.length-2).join("/");
+	console.log("mkdir -p %s",path);
+        execSync("mkdir -p " + path);
+    }
     var file = "index.html";
-    if(last.match("\.")){
+    if(path.match("\.")){
 	file=last;
     }
+    path=path+file;
+
+	console.log("path %s",path);
+    
     fs.writeFileSync("root/"+path, html+"\n", encoding='utf8');
 }
 function doOneLink(url){
     saveState();
     request(url, function (error, response, html) {
 	if (!error && response.statusCode == 200) {
+	    console.log("downloading %s",url);
 	    linkCurrent+=1;
 	    linkNextLevel-=1;
-
-	    if(url.match("^/")){
-		lurl=url+element.attribs.href;
-	    }else{
-		lurl=url+currentRoot+element.attribs.href;
-	    }
-	    console.log(lurl);
+	    console.log(url);
 	    
-	    logToDone(lurl);
-	    logToQueue("//"+lurl);
+	    logToDone(url);
 	    var $ = cheerio.load(html);
 	    $("a:not([href^=http]):not([href^=mailto])").each(function(i, element){
 		linkTotal+=1;
 		//if relative url then
+
+	      if(url.match("^/")){
+	         lurl=url+element.attribs.href;
+	      }else{
+	         lurl=url+currentRoot+element.attribs.href;
+              }
 		logToQueue(lurl);
 	    });
 	    linkNextLevel=linkTotal-linkCurrent;
@@ -246,9 +266,9 @@ function doOneLink(url){
 	    }
 	    var rate = 10000;
 	    
-	    dumpToFile(html,lurl.split("/").slice(1).join("/"));
+	    dumpToFile(html,url.substring(gurl.length-1));
 	    
-	    console.log("rate: " + rate + " link current: "+linkCurrent+" links total: "+linkTotal+" links left on level: "+ linkNextLevel+" count of links on level: "+linkLevel+ " errors: "+linksFailed+" line in queue file: "+lineCurrent);
+	    console.log("rate: " + rate + " link current: "+linkCurrent+" links total: "+linkTotal+" links left on level: "+ linkNextLevel+" count of links on level: "+linkLevel+ " errors: "+linksFailed+" line in queue file: "+lineCurrent+" currentpath: " + currentRoot);
 	}
     });
 }
