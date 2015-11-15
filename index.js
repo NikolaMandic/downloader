@@ -133,21 +133,31 @@ function saveState(){
     }), encoding='utf8');
 }
 function restoreState(){
-    var nstate=execSync('sed \'1q;d\' \''+ stateFileName+'\'').toString('utf8');
 
-    var state = JSON.parse(nstate);
-    queueFileName=state.queueFileName;
-    doneFileName=state.doneFileName;
-    stateFileName=state.stateFileName;
+    // Query the entry
+    stats = fs.lstatSync(stateFileName);
 
-    rate=state.rate;
-    linkLevel=state.linkLevel;
-    linkTotal=state.linkTotal;
+    // Is it a directory?
+    if (stats.isFile()) {
+        // Yes it is	
+	var nstate=execSync('sed \'1q;d\' \''+ stateFileName+'\'').toString('utf8');
 
-    linkNextLevel=state.linkNextLevel;
-    linksFailed=state.linksFailed;
-    lineCurrent=state.lineCurrent;
+	var state = JSON.parse(nstate);
+	queueFileName=state.queueFileName;
+	doneFileName=state.doneFileName;
+	stateFileName=state.stateFileName;
 
+	rate=state.rate;
+	linkLevel=state.linkLevel;
+	linkTotal=state.linkTotal;
+
+	linkNextLevel=state.linkNextLevel;
+	linksFailed=state.linksFailed;
+	lineCurrent=state.lineCurrent;
+    }else{
+	
+
+    }
 }
 
 function readline(){
@@ -158,8 +168,6 @@ function readline(){
 
 logToQueue(url);
 logToQueue("//"+url);
-saveState();
-console.log(state());
 restoreState();
 console.log(state());
 
@@ -215,7 +223,7 @@ function doOneLink(url){
 	    var rate = 10000;
 
 
-	    console.log("link current: "+linkCurrent+" links total: "+linkTotal+" links left on level: "+ linkNextLevel+" count of links on level: "+linkLevel+ " errors: "+linksFailed+" line in queue file: "+lineCurrent);
+	    console.log("rate: " + rate + " link current: "+linkCurrent+" links total: "+linkTotal+" links left on level: "+ linkNextLevel+" count of links on level: "+linkLevel+ " errors: "+linksFailed+" line in queue file: "+lineCurrent);
 	}
     });
 }
